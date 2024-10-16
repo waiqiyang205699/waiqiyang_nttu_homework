@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>貪吃蛇遊戲</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1F1F1F;
+        }
+
+        canvas {
+            border: 2px solid white;
+            background-color: black;
+        }
+
+        h1 {
+            position: absolute;
+            top: 10%;
+            color: rgb(255, 255, 255);
+            font-size: 60px;
+            text-align: center;
+        }
+        h2 {
+            position: absolute;
+            top: 20%;
+            color: rgb(99, 121, 168);
+            font-size: 18px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>貪吃蛇遊戲<br></h1>
+    <h2>按下空白鍵開始、暫停遊戲<br>
+    上下左右鍵改編蛇的方向<br>
+    吃下食物拿到更高的分數吧<br></h2>
+    <!--畫布小惟場地大小-->
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const boxSize = 20; // 每一格的大小
+        let snake = [// 初始蛇的位置，長度為五
+            { x: 10 * boxSize, y: 10 * boxSize },
+            { x: 10 * boxSize, y: 10 * boxSize },
+            { x: 10 * boxSize, y: 10 * boxSize },
+            { x: 10 * boxSize, y: 10 * boxSize },
+            { x: 10 * boxSize, y: 10 * boxSize }]; 
+        let direction = "UP"; // 初始方向
+        let food = generateFood(); // 初始食物位置
+        let score = 0;
+        let gameInterval = null; // 遊戲計時器
+        let gameStarted = false; // 遊戲是否已開始
+        let isPaused = false; // 遊戲是否暫停
+
+        // 當空白件被按下開始遊戲
+        // 當空白鍵被按下，開始或暫停遊戲
+        document.addEventListener("keydown", (event) => {
+            if (event.code === "Space") {
+                if (!gameStarted) {
+                    startGame(); // 如果遊戲還沒開始，則開始遊戲
+                } else {
+                    togglePause(); // 如果已開始，則切換暫停/繼續狀態
+                }
+            } else {
+                changeDirection(event); // 控制方向
+            }
+        });
+        // 遊戲開始時啟動更新循環
+        function startGame() {
+            gameStarted = true;
+            document.querySelector("h1").style.display = "none"; // 隱藏提示文字
+            document.querySelector("h2").style.display = "none";
+            gameInterval = setInterval(updateGame, 160); // 每_毫秒更新一次
+        }
+        function togglePause() {
+            isPaused = !isPaused; // 切換暫停狀態
+            if (isPaused) {
+                clearInterval(gameInterval); // 停止遊戲更新
+            } else {
+                gameInterval = setInterval(updateGame, 100); // 恢復遊戲更新
+            }
+        }
+        function updateGame() {
+            // 計算下一個蛇頭位置
+            const head = { ...snake[0] }; 
+            if (direction === "LEFT") head.x -= boxSize;
+            if (direction === "UP") head.y -= boxSize;
+            if (direction === "RIGHT") head.x += boxSize;
+            if (direction === "DOWN") head.y += boxSize;
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                food = generateFood(); // 吃到食物後生成新食物
+            } else {
+                snake.pop(); // 如果沒吃到食物，移除蛇尾
+            }
+
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || checkCollision(head)) {
+                alert("遊戲結束！菜就多練!\n"+"你的分數只有 : " + score);
+                clearInterval(gameInterval); // 停止遊戲
+                document.location.reload(); // 重新載入頁面
+            }
+
+            snake.unshift(head); // 更新蛇的位置
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空畫布
+            drawSnake();
+            drawFood();
+        }
+
+        function drawSnake() {
+            // 建立從蛇頭到蛇尾的漸層
+            const gradient = ctx.createLinearGradient(
+                snake[0].x, snake[0].y, 
+                snake[snake.length - 1].x, snake[snake.length - 1].y
+            );
+
+            // 設定漸層色碼
+            gradient.addColorStop(0, "#0A01FF"); 
+            gradient.addColorStop(1, "#02C2FF");
+
+            ctx.fillStyle = gradient;
+
+            // 畫出整條蛇
+            snake.forEach(segment => {
+                ctx.fillRect(segment.x, segment.y, boxSize, boxSize);
+            });
+        }
+
+        function generateFood() {
+            //隨機生成食物位置
+            let newFood;
+            let isOnSnake;
+            do {
+                const x = Math.floor(Math.random() * (canvas.width / boxSize)) * boxSize;
+                const y = Math.floor(Math.random() * (canvas.height / boxSize)) * boxSize;
+                newFood = { x, y };
+
+                // 檢查新食物是否在蛇的身上
+                isOnSnake = snake.some(segment => segment.x === newFood.x && segment.y === newFood.y);
+            } while (isOnSnake);  // 如果重疊，就重新生成
+
+            return newFood;
+        }
+
+        function drawFood() {
+            //將食物生成在畫布上
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(food.x, food.y, boxSize, boxSize);
+        }
+
+        function changeDirection(event) {
+            //更新每一次輸入
+            const key = event.key;
+            if (key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+            if (key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+            if (key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+            if (key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+        }
+
+        function checkCollision(head) {
+            return snake.some(segment => segment.x === head.x && segment.y === head.y);
+        }
+    </script>
+</body>
+</html>
